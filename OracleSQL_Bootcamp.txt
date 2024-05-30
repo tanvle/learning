@@ -1,0 +1,128 @@
+
+*** Create user in Oracle DB ***
+
+CREATE USER temp_user IDENTIFIED BY 123
+	PASSWORD EXPIRE
+	ACCOUNT [UNLOCK | LOCK]
+	CONTAINER=[CURRENT | ALL];
+
+GRANT CREATE SESSION TO temp_user;
+SELECT * FROM dba_users;
+SELECT * FROM all_users;
+SELECT * FROM user_users;
+
+DROP USER temp_user [CASCADE];
+---------------------------------
+
+
+*** Grant System Privileges ***
+
+SELECT * FROM user_sys_privis;
+SELECT * FROM dba_sys_privis;
+
+CREATE TABLE temp_table(temp_column NUMBER);
+
+GRANT CREATE TABLE, CREATE VIEW TO temp_user
+	WITH ADMIN OPTION
+	CONTAINER = [CURRENT | ALL];
+---------------------------------------------
+
+
+*** Roles & Public ***
+* Instead of granting many privis to all users individually,
+* we first collect a group of privis into a Role
+* we then grant that specific Role to a User Group
+* and assign the Users to specific Group
+* so the USers can inherit all privis specified by a Role
+
+*  PUBLIC Role is special role that every User automatically has.
+* Public Role cannot be granted to/revoked from user
+* DBA can grant any privils into Public so users can have those by default.
+
+* Roles can be local to a PDB or common to all
+
+CREATE ROLE role_name
+	IDENTIFIED BY password | NOT IDENTIFIED
+	CONAINER = [CURRENT | ALL];
+
+GRANT role|privi [role, privi,...]
+	TO [user | role | PUBLIC] [program_unit_type program_unit_name...]
+	[WITH ADMIN OPTION]
+	[CONTAINER = CURRENT|ALL] ;
+
+DROP ROLE role_name;
+
+* Oracle Codes:
+CREATE ROLE developer;
+GRANT CREATE SESSION, CREATE SEQUENCE, CREATE TABLE TO developer;
+SELECT * FROM dba_sys_privs WHERE GRANTEE = 'DEVELOPER';
+SELECT * FROM dba_sys_privs WHERE GRANTEE = 'TEMP_USER';
+GRANT developer TO temp_user;
+
+CREATE SEQUENCE temp_seq;
+SELECT * FROM user_role_privs;
+SELECT * FROM 	session_privs;
+CREATE SYNONYM temp_synonym FOR temp_table;
+GRANT CREATE SESSION, CREATE SEQUENCE, CREATE TABLE, CREATE SYNONYM TO developer;
+GRANT CREATE SYNONYM TO developer;
+
+CREATE ROLE test_role IDENTIFIED BY 123;
+GRANT test_role TO temp_user;
+GRANT SELECT ANY TABLE TO test_role;
+
+SET ROLE test_role IDENTIFIED BY 123;
+SET ROLE ALL;
+SET ROLE test_role IDENTIFIED BY 123, developer;
+SET ROLE NONE;
+SET ROLE ALL EXCEPT test_role;
+
+SELECT * FROM hr.employees;
+DROP ROLE test_role;
+
+ALTER USER user_name
+	DEFAULT ROLE role_name | [role_name,...]
+	| ALL [EXCEPT role_name]
+	| NONE;
+
+*** To checl Roles
+SELECT * 
+FROM dba_sys_privis | user_role_privis |session_privis
+WHERE grantee = <user_name>;
+
+--------------------------------
+
+*** Unlock HR Schema ***
+sqlplus / as sysdba
+alter user hr identified by hr account unlock;
+create user hr identified by hr  //connect to db as sys
+
+GRANT 
+create session, alter session, create database, 
+create materialized view, create procedure, create public synonym,
+create table, create view, unlimited tablespace
+TO hr;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
