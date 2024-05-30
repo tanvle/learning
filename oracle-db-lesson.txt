@@ -1,0 +1,275 @@
+ORACLE DATABASE
+by Ahmed Baraka @ Oreilly.com
+
+
+Oracle Database Implementation
+    • SIA - Single Instance Architecture – single db running on single instance server
+    • RAC – Real Application Cluster – a cluster of OD servers, referred to as active/active cluster solution
+    • RAC One Node – one node is active, the other is passive with service fail-over
+    • Data Guard Configuration 
+        ◦ cluster of 2: Primary & Standby DB
+        ◦ if Primary fails, service will failover to Standby
+        ◦ Active Data Guard mode: standby is for read-only to offload the Primary. Required license to run.
+
+Oracle Golden Gate
+    • replicate data across the cluster of OD
+    • can replicate to non-Oracle rmdbs
+    • bi-directional
+    • fine grain replications to subsets of data (vs. Data Guard)
+
+ASM – Oracle Auto Storage Management
+    • serves as both Volume Management and File System for ODBs
+
+DBA Roles & Responsibilities
+    • Plan & design database
+    • install OD and Grid infrastructure sw
+    • create Oracle databases
+    • O&M: security, backup, disater recovery, patching, updates etc.
+    • migration
+    • licensing
+    • diagnosing & troubleshooting
+    • Two separate roles: DBA + Apps DBA
+
+Oracle Databse Architecture
+
+Database Server
+    • Database instance – memory components, processes etc.
+    • Database – data files, systems files etc. 
+
+Client apps interface with processes hosted on the server instance. The processes in turn responds to client requests.
+
+Mandatory background processes: DBWR-Writer, LOGWR-log, SMON-sys monitor, CHPT-checkpoint, LREG-listener, PMON
+
+Database TableSpaces & Data Files
+    • Tablespace consists of 1 or more data files
+    • A Data file belongs to one & only one Tablespace
+
+
+Managing Oracle Database
+
+dbca:
+glbal database name: oradb.localdomain
+SID:	oradb (it’s instance name)
+CDB: 	CDB for mutlti-tenant env; 
+
+Managing Database Users
+
+Database Users:
+    • be person, application, device, group, object etc.
+    • User atrributes:
+        ◦ name: 30 bytes, no special chars, starts with a letter
+        ◦ account status: OPEN, LOCKED, EXPIRED
+        ◦ in CDP, application users created in PDBs
+
+Pre-Defined Accounts:
+    • Admin Account – SYS, SYSTEM, SYSBACKUP, SYSDG, SYSKM, SYSRAC, SYSMAN, DBSNMP
+    • Sample Schema Account - HR, SH, OE
+    • Internal Account: ** for system used only
+
+To list the pre-defined accounts:
+SELECT * FROM DBA_USERS WHERE ORACLE_MAINTAINED=’Y”;
+
+
+Create User
+
+CREATE USER <username> IDENTIFIED BY <user password>
+[ DEFAULT TABLESPACE <tableSpaceName> ]
+[ PROFILE <profileName, default is DEFAULT> ]
+[ TEMPORARY TABLESPACE <tempTablespace> ]
+[ ACCOUNT LOCK|UNLOCK ];
+
+ex.
+CREATE USER hr 
+DEFAULT TABLESPACE hrtbs I
+DENTIFIED BY ABdc##1234;
+
+Modify User
+
+ALTER USER userName
+ACCOUNT [LOCK|UNLOCK]
+IDENTIFIED BY newPasswd;
+
+
+Schema-Only Account
+    • manged via DAB or proxy user
+    • no password to login
+    • can be granted sys privileges etc.
+    • STATUS of DBA_USERS is NONE
+    • To create/alter:
+        ◦ CREATE USER hr NO AUTHENTICATION …;
+        ◦ ALTER USER hr NO AUTHENTICATION …;
+
+Managing Tablespace
+
+CREATE USER scott
+…
+DEFAULT TABLESPACE data_ts
+QUOTA 500M ON data_ts
+QUOTA 100M ON index_ts
+…
+ALTER USER scott QUOTA 1000M | UNLIMITED  ON data_ts
+
+Remove user
+DROP USER <username> [CASCADE] ;
+
+
+USER PRIVILEGES
+
+    • System Privileges – perform actions in the database, ie. connect to dbase, create tbsp, views
+    • Object privilege – access and manipulate object such as insert data to table, select form tables etc.
+    • Admin privilege
+       
+System Privileges
+
+SELECT PRIVILEGE, NAME F
+	ROM SYSTEM_PRIVILEGE_MAP;
+
+GRANT <system_privilege> TO <grantee> [WITH ADMIN OPTION]
+REVOKE <system_privilege> FROM <grantee>
+
+ex.
+GRANT CREATE SESSION, CREATE VIEW, ALTER SESSION TO hr;
+GRANT CREATE ANY TABLE TO ogg;	** be mindful
+GRANT ALL PRIVIEGES TO <username>	** be !!!
+
+Object Privileges
+
+GRANT <obj_privilege> ON <obj> TO <grantee> [ WITH GRANT OPTION ] [CONTAINER = CURRENT | ALL ];
+
+REVOKE <obj_privilege> ON <obj> FROM <grantee> [ WITH GRANT OPTION ] [CONTAINER = CURRENT | ALL ];
+
+Ex.
+
+GRANT select, insert, update, delete ON hr.employees TO scott;
+GRANT update (first_name, last_name) ON hr.employees TO scott;
+GRANT all ON hr.employees TO scott;
+
+
+Roles
+
+    • Privileges are granted to components called “ROLE”
+    • Roles are granted to Users so the Users can inherit all privileges defined by a specific role.
+
+Ex.
+Privileges: create shed, update sched, selct employees etc. are granted to HR_CLERK role
+HR_CLERK role is granted to user named zak so zak can perform the all privileges needed for his work.
+
+Properties:
+    • Role is group of privieges that can be granted to a user or another roles
+    • Role name must be unique and diff. From all usernames
+    • Roles are contained in any schema
+    • Multi roles can be granted to the same user. 
+ 
+SELECT ROLE, ORACLE_MAINTAINED
+	FROM DBA_ROLES
+	WHERE ORACLE_MAINTAINED = ‘Y’; 
+
+
+Steps to implement roles
+
+    • CREATE ROLE <role name> [IDENTIFIED BY <password>];
+    • GRANT <privilege | role> TO <role name>;
+    • GRANT <role> TO <user name>;
+    • ALTER USER <user name> DEFAULT ROLE role1, role2…;
+    • ALTER USER <user name> DEFAULT ROLE ALL EXCEPT roleName;
+
+Notes
+All PUBLIC ROLES are granted to all database users.
+Avoid granting public roles!!!
+List of roles:
+    • DBA_ROLES, DBA_ROLE_PRIVIS, DBA_SYS_PRIVIS, DBA_TAB_PRIVIS
+    • ROLE_ROLE_PRIVIS, ROLE_SYS_PRIVIS, ROLE_TAB_PRIVIS
+    • USER_TAB_PRIVIS, USER_TAB_PRIVIS_MADE, USER_TAB_PRIVS_RECD
+    • SESSION_ROLES
+
+
+*** Practices ***
+
+conn / as sysdba
+
+CREATE USER hr_officer 
+IDENTIFIED BY ABcd##1234 
+DEFAULT 
+TABLESPACE users;
+
+CREATE USER hr_reporter 
+IDENTIFIED BY ABcd##1234 
+DEFAULT 
+TABLESPACE users;
+
+CREATE ROLE hr_officer_role;
+CREATE ROLE hr_reporter_role;
+
+SELECT role, password_required, authentication_type
+FROM dba_roles
+WHERE role IN (‘hr_officer_role’, ‘hr_reporter_role’);
+
+-- start granting system privileges
+GRANT create session, create synonym TO hr_officer_role;
+GRANT create session, create synonym TO hr_reporter_role;
+
+-- grant object privileges to the role:
+GRANT select, insert, update ON hr.tablename TO hr_officer_role;
+GRANT select, update, insert ON hr.regions TO hr_officer_role;
+
+-- grant same to hr_reporter_role
+
+-- checking results
+SELECT grantee, privilege
+FROM dba_sys_privis 	(or dab_tab_privis)
+WHERE grantee IN (‘hr_officer_role’, ‘hr_reporter_role’);
+
+-- grant the role to coressponding username
+GRANT hr_officer_role TO hr_officer;
+GRANT hr_reporter_role TO hr_reporter;
+
+SELECT grantee, granted_role
+FROM dba_role_privis
+WHERE grantee IN (‘hr_officer’, ‘hr_reporter’);
+
+-- test user connection
+conn hr_office/ABC##1234
+SELECT count(*) FROM hr.employees;
+
+-- create synonym
+CREATE SYNONYM regions FOR hr.regions;
+CREATE SYNONYM countries FOR hr.countries;
+CREATE SYNONYM departments FOR hr.departments;
+
+SELECT COUNT(*) FROM regions;
+
+-- functionality verification
+UPDATE <table name> WHERE <field name> = <value>;
+UPDATE employess WHERE employee_id = 1012;
+
+
+Data Dictionary
+
+Static Views
+    • contains data about objects, privileges, users etc.
+    • changed by DDL operations
+
+There are 3 types:
+    • USER
+        ◦ only info about current user object
+        ◦ ex. USER_TABLES
+    • ALL
+        ◦ display info about current user objects and other objects that the user has privileges on
+        ◦ ex. ALL_TABLES
+    • DBA
+        ◦ display info about all objects
+        ◦ ex. DBA_TABLES
+       
+
+Misc Views:
+SESSION_PRIVIS, DICTIONARY, DIST_COLUMNS, TABLE_PRIVILEGES
+
+Dynamic Performance Views
+Contains info about current session, databse, transactions, logs etc.
+
+
+
+
+Scratch Notes
+select * from all_users;
+
