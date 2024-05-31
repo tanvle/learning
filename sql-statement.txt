@@ -1,0 +1,27 @@
+SQL Statement
+
+desc hr.countries;
+info+ hr.countries;
+
+select * from hr.employees;
+select employee_id, first_name, salary From hr.employees;
+select employee_id as ID, first_name AS Name, salary AS Salary From hr.employees;
+select employee_id ID, first_name Name, salary Salary, salary*1.08 "New Salary" From hr.employees;
+select q'[Use Dual for this purpose...]' AS "Quote Operator" from dual;
+
+select distinct job_id AS "Distinct Job", salary from hr.employees emp;
+select distinct job_id, salary from hr.employees emp
+    where emp.salary >= 10000;
+
+select first_name || ' ' || last_name as "Concatenated Name" from hr.employees;
+select street_address || ', ' || city || ', ' || state_province || ', ' || postal_code || ', ' || country_id AS "Full Address" from hr.locations;
+
+Select employee_id AS ID, first_name || ' ' || last_name AS "Employee", salary From hr.employees
+    Where salary Between 9999 AND 24001;
+
+Select first_name from hr.employees
+    where upper(first_name) LIKE '%ST%';
+    
+Select first_name, phone_number from hr.employees
+    where phone_number LIKE '515._23.456_';
+    
